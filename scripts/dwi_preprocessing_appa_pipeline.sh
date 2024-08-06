@@ -88,12 +88,24 @@ for s in $(ls ${bids_dir}); do
         printf "${ORANGE}Denoised file already exists for subject ${s}, skipping denoising${NC}\n"
     fi
     
+    # Step 2: Remove Gibbs ringing
+    if [ ! -f ${od}-AP_dwi_unringed.nii.gz ]; then
+        mrdegibbs ${od}-AP_dwi_denoised.nii.gz  ${od}-AP_dwi_unringed.nii.gz -nthreads ${threads}
+        if [ $? -eq 0 ]; then
+            printf "${GREEN}Gibbs ringing removal completed for subject ${s}${NC}\n"
+        else
+            printf "${RED}[ERROR] Gibbs ringing removal failed for subject ${s}${NC}\n"
+        fi
+    else
+        printf "${ORANGE}Gibbs ringing file already exists for subject ${s}, skipping Gibbs ringing removal${NC}\n"
+    fi
+
     # FSL DWI pre-processing
     if [ ! -f ${od}-AP_dwi_corr.nii.gz ]; then
         fslroi ${wd}-AP_dwi.nii.gz ${od}-AP_dwi_b0.nii.gz 0 1
         fslroi ${wd}-PA_dwi.nii.gz ${od}-PA_dwi_b0.nii.gz 0 1
         mrcat ${od}-AP_dwi_b0.nii.gz ${od}-PA_dwi_b0.nii.gz ${od}-b0_pair.mif -axis 3
-        dwifslpreproc ${od}-AP_dwi_denoised.nii.gz \
+        dwifslpreproc ${od}-AP_dwi_unringed.nii.gz \
             ${od}-AP_dwi_corr.nii.gz -fslgrad ${wd}-AP_dwi.bvec ${wd}-AP_dwi.bval \
             -export_grad_fsl ${od}-AP_dwi_corr.bvec ${od}-AP_dwi_corr.bval \
             -rpe_pair -se_epi ${od}-b0_pair.mif  -eddy_options " --slm=linear "\
@@ -107,7 +119,7 @@ for s in $(ls ${bids_dir}); do
 
     # Cleanning files
     for f in ${od}-AP_dwi_b0.nii.gz ${od}-AP_dwi_denoised.nii.gz \
-        ${od}-b0_pair.mif ${od}-PA_dwi_b0.nii.gz; do
+        ${od}-b0_pair.mif ${od}-PA_dwi_b0.nii.gz ${od}-AP_dwi_unringed.nii.gz; do
         if [ ! f ${f} ]; then
             rm ${f}
         fi
