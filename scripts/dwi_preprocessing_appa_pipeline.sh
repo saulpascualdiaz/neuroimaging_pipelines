@@ -55,7 +55,8 @@ for s in $(ls ${bids_dir}); do
     start_time=$(date +%s)
     
     if [ -f ${od}-AP_dwi_corr.nii.gz ]; then
-        echo "${GREEN}Subject ${s} already pre-processed.${NC}"
+        printf "${GREEN}Subject ${s} already pre-processed.${NC}\n"
+        continue
     fi
 
     # Checking for input files
@@ -118,9 +119,9 @@ for s in $(ls ${bids_dir}); do
     fi
 
     # Cleanning files
-    for f in ${od}-AP_dwi_b0.nii.gz ${od}-AP_dwi_denoised.nii.gz \
-        ${od}-b0_pair.mif ${od}-PA_dwi_b0.nii.gz ${od}-AP_dwi_unringed.nii.gz; do
-        if [ ! f ${f} ]; then
+    for f in "${od}-AP_dwi_b0.nii.gz" "${od}-AP_dwi_denoised.nii.gz" \
+        "${od}-b0_pair.mif" "${od}-PA_dwi_b0.nii.gz" "${od}-AP_dwi_unringed.nii.gz"; do
+        if [ -f ${f} ]; then
             rm ${f}
         fi
     done
