@@ -1,6 +1,6 @@
 #!/bin/bash
 # Author: Saül Pascual-Diaz
-# Version: 1.0
+# Version: 1.1
 # Date: August 5th, 2024
 
 # Description:
@@ -32,7 +32,7 @@
 # Configuration
 bids_dir=/Volumes/working_disk_blue/SPRINT_MPS/bids_data
 bids_out=/Volumes/working_disk_blue/SPRINT_MPS/bids_derivatives/DWI_postprocessed
-parallel_jobs=8  # Set the number of parallel jobs (subjects) to process simultaneously
+parallel_jobs=6  # Set the number of parallel jobs (subjects) to process simultaneously
 
 # Do not modify beyond this point ------------------------------------------------
 # ANSI color codes
@@ -53,7 +53,7 @@ process_subject() {
     start_time=$(date +%s)
     
     if [ -f ${od}-AP_dwi_corr.nii.gz ]; then
-        echo "${GREEN}Subject ${s} already pre-processed.${NC}"
+        printf "${GREEN}Subject ${s} already pre-processed.${NC}\n"
         return
     fi
 
