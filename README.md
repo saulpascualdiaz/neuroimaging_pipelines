@@ -83,5 +83,4 @@ Ensure you have the following software installed:
 - [MRtrix3](https://mrtrix.readthedocs.io/en/latest/)
 - [TractSeg](https://github.com/Neuroanatomy/TractSeg)
 - [FSL](https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/FSL)
-- [Python packages](https://github.com/Neuroanatomy/TractSeg#dependencies) for TractSeg
 
