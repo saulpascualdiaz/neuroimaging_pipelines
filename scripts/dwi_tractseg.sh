@@ -1,6 +1,6 @@
 #!/bin/bash
 # Author: Saül Pascual-Diaz
-# Version: 0.1
+# Version: 1
 # Date: September 9th, 2024
 # 
 # Description:
@@ -36,6 +36,12 @@ for s in $(ls ${dwi_preprocessed}); do
     
     # Define output directory for TractSeg results
     od=${bids_derivatives}/DWI_tractseg/${s}/ses-${ses}
+    
+    if [ -d "${od}/bundle_segmentations" ]; then
+        echo "TractSeg output found for subject: ${s}"
+        continue
+    fi
+
     if [ ! -d ${od} ]; then mkdir -p ${od}; fi  # Create output directory if it doesn't exist
     
     # Step 1: Tract segmentation using TractSeg
