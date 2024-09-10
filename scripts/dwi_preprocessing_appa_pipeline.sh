@@ -59,8 +59,7 @@ process_subject() {
 
     # Checking for input files
     missing_files=false
-    for f in "${wd}-AP_dwi.bval" "${wd}-AP_dwi.bvec" "${wd}-AP_dwi.nii.gz" \
-             "${wd}-PA_dwi.bval" "${wd}-PA_dwi.bvec" "${wd}-PA_dwi.nii.gz"; do
+    for f in "${wd}-AP_dwi.bval" "${wd}-AP_dwi.bvec" "${wd}-AP_dwi.nii.gz" "${wd}-PA_dwi.nii.gz"; do
         if [ ! -f "${f}" ]; then
             printf "${RED}[WARNING] Skipping subject ${s}. Missing input file: ${f}${NC}\n"
             missing_files=true
