@@ -24,6 +24,15 @@
 bids_derivatives="/Volumes/working_disk_blue/SPRINT_MPS/bids_derivatives"
 dwi_preprocessed="${bids_derivatives}/DWI_postprocessed"
 
+# ANSI Color variables
+BLUE='\033[1;34m'
+NC='\033[0m' # Sin color (reset)
+
+run_command() {
+    echo -e "${BLUE}command:${NC} $*"
+    "$@"
+}
+
 # Loop through each subject in the preprocessed DWI directory
 for s in $(ls ${dwi_preprocessed}); do
     ses="baseline"  # Define session identifier (default: baseline)
@@ -48,23 +57,32 @@ for s in $(ls ${dwi_preprocessed}); do
     # Create output directory if it doesn't exist
     if [ ! -d ${od} ]; then mkdir -p ${od}; fi  
     
-    # Step 1: Calculate brain mask from DWI data using the gradient table
-    brain_mask_file="${od}/${s}_ses-${ses}_brainmask.nii.gz"
-    dwi2mask ${in_dwi_file}.nii.gz -fslgrad ${in_dwi_file}.bvec ${in_dwi_file}.bval - | mrconvert - ${brain_mask_file}
-    
-    # Step 2: Generate tensor file with brain mask applied
+    # Step 0: Calculate brainmask in case it didn't exist
+    if [ ! -f ${in_dwi_file}_mean_brainmask.nii.gz ]; then
+        run_command fslmaths ${in_dwi_file}.nii.gz -Tmean ${in_dwi_file}_mean.nii.gz
+        run_command bet2 ${in_dwi_file}_mean.nii.gz ${in_dwi_file}_mean_brain.nii.gz -f 0.45 -g 0.0
+        run_command fslmaths ${in_dwi_file}_mean_brain.nii.gz -thr 0 -bin ${in_dwi_file}_mean_brainmask.nii.gz
+    fi
+
+    # Step 1: Generate tensor file with brain mask applied
     tensor_file="${od}/${s}_ses-${ses}_dir-AP_dwi_corr_tensor.nii.gz"
-    dwi2tensor ${in_dwi_file}.nii.gz -fslgrad ${in_dwi_file}.bvec ${in_dwi_file}.bval -mask ${brain_mask_file} - | mrconvert - ${tensor_file}
+    dwi2tensor ${in_dwi_file}.nii.gz -fslgrad ${in_dwi_file}.bvec ${in_dwi_file}.bval -mask ${in_dwi_file}_mean_brainmask.nii.gz - | mrconvert - ${tensor_file}
     
-    # Step 3: Generate Fractional Anisotropy (FA) map
-    tensor2metric -fa ${od}/${s}_ses-${ses}_dir-AP_dwi_corr_FA.nii.gz -mask ${brain_mask_file} ${tensor_file}
+    # Step 2: Generate Fractional Anisotropy (FA) map
+    run_command tensor2metric -fa ${od}/${s}_ses-${ses}_dir-AP_dwi_corr_FA.nii.gz -mask ${in_dwi_file}_mean_brainmask.nii.gz ${tensor_file}
+    run_command fslmaths ${od}/${s}_ses-${ses}_dir-AP_dwi_corr_FA.nii.gz -nan ${od}/${s}_ses-${ses}_dir-AP_dwi_corr_FA.nii.gz
     
-    # Step 4: Generate Mean Diffusivity (MD) map
-    tensor2metric -adc ${od}/${s}_ses-${ses}_dir-AP_dwi_corr_MD.nii.gz -mask ${brain_mask_file} ${tensor_file}
+    # Step 3: Generate Mean Diffusivity (MD) map
+    run_command tensor2metric -adc ${od}/${s}_ses-${ses}_dir-AP_dwi_corr_MD.nii.gz -mask ${in_dwi_file}_mean_brainmask.nii.gz ${tensor_file}
+    run_command fslmaths ${od}/${s}_ses-${ses}_dir-AP_dwi_corr_MD.nii.gz -nan ${od}/${s}_ses-${ses}_dir-AP_dwi_corr_MD.nii.gz
+
+    # Step 4: Generate Radial Diffusivity (RD) map
+    run_command tensor2metric -rd ${od}/${s}_ses-${ses}_dir-AP_dwi_corr_RD.nii.gz -mask ${in_dwi_file}_mean_brainmask.nii.gz ${tensor_file}
+    run_command fslmaths ${od}/${s}_ses-${ses}_dir-AP_dwi_corr_RD.nii.gz -nan ${od}/${s}_ses-${ses}_dir-AP_dwi_corr_RD.nii.gz
     
-    # Step 5: Generate Radial Diffusivity (RD) map
-    tensor2metric -rd ${od}/${s}_ses-${ses}_dir-AP_dwi_corr_RD.nii.gz -mask ${brain_mask_file} ${tensor_file}
-    
-    # Step 6: Generate Axial Diffusivity (AD) map
-    tensor2metric -ad ${od}/${s}_ses-${ses}_dir-AP_dwi_corr_AD.nii.gz -mask ${brain_mask_file} ${tensor_file}
+    # Step 5: Generate Axial Diffusivity (AD) map
+    run_command tensor2metric -ad ${od}/${s}_ses-${ses}_dir-AP_dwi_corr_AD.nii.gz -mask ${in_dwi_file}_mean_brainmask.nii.gz ${tensor_file}
+    run_command fslmaths ${od}/${s}_ses-${ses}_dir-AP_dwi_corr_AD.nii.gz -nan ${od}/${s}_ses-${ses}_dir-AP_dwi_corr_AD.nii.gz
+
+    rm ${tensor_file}
 done

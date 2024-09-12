@@ -34,7 +34,15 @@ bids_derivatives="/Volumes/working_disk_blue/SPRINT_MPS/bids_derivatives"
 dwi_preprocessed="${bids_derivatives}/DWI_postprocessed"
 git_dir="/Users/spascual/git/saulpascualdiaz/neuroimaging_pipelines"
 DTI_dir="/Volumes/working_disk_blue/SPRINT_MPS/bids_derivatives/DWI_DTI-derived_maps"
-MATLAB_PATH=/Applications/MATLAB_R2022a.app/bin/matlab
+
+# ANSI Color variables
+BLUE='\033[1;34m'
+NC='\033[0m' # Sin color (reset)
+
+run_command() {
+    echo -e "${BLUE}command:${NC} $*"
+    "$@"
+}
 
 # Loop through each subject in the preprocessed DWI directory
 for s in $(ls ${dwi_preprocessed}); do
@@ -53,56 +61,49 @@ for s in $(ls ${dwi_preprocessed}); do
     wd=${od}/${s}_ses-${ses}_dir-AP_dwi
     if [ ! -d ${od} ]; then mkdir -p ${od}; fi
 
-    # Step 1: Calculate brain mask from DWI data using the gradient table
-    if [ ! -f ${wd}_brainmask.nii.gz ]; then
-        dwi2mask ${in_dwi_file}.nii.gz -fslgrad ${in_dwi_file}.bvec ${in_dwi_file}.bval - | mrconvert - ${wd}_brainmask.nii.gz
+    start_time=$(date +%s)
+
+    # Step 0: Calculate brainmask in case it didn't exist
+    if [ ! -f ${in_dwi_file}_mean_brainmask.nii.gz ]; then
+        run_command fslmaths ${in_dwi_file}.nii.gz -Tmean ${in_dwi_file}_mean.nii.gz
+        run_command bet2 ${in_dwi_file}_mean.nii.gz ${in_dwi_file}_mean_brain.nii.gz -f 0.45 -g 0.0
+        run_command fslmaths ${in_dwi_file}_mean_brain.nii.gz -thr 0 -bin ${in_dwi_file}_mean_brainmask.nii.gz
     fi
 
-    # Step 2: Estimate response function
+    # Step 1: Estimate response function
     if [ ! -f ${wd}_response.txt ]; then
-        dwi2response tournier ${in_dwi_file}.nii.gz ${wd}_response.txt -fslgrad ${in_dwi_file}.bvec ${in_dwi_file}.bval -mask ${wd}_brainmask.nii.gz
+        run_command dwi2response tournier ${in_dwi_file}.nii.gz ${wd}_response.txt -fslgrad ${in_dwi_file}.bvec ${in_dwi_file}.bval -mask ${in_dwi_file}_mean_brainmask.nii.gz
     fi
 
-    # Step 3: Perform constrained spherical deconvolution (CSD) to estimate FODs
+    # Step 2: Perform constrained spherical deconvolution (CSD) to estimate FODs
     if [ ! -f ${wd}_fod.mif ]; then
-        dwi2fod csd ${in_dwi_file}.nii.gz ${wd}_response.txt ${wd}_fod.mif -fslgrad ${in_dwi_file}.bvec ${in_dwi_file}.bval -mask ${wd}_brainmask.nii.gz
+        run_command dwi2fod csd ${in_dwi_file}.nii.gz ${wd}_response.txt ${wd}_fod.mif -fslgrad ${in_dwi_file}.bvec ${in_dwi_file}.bval -mask ${in_dwi_file}_mean_brainmask.nii.gz
     fi
 
-    # Step 4: Generate tractogram with 5 million streamlines
+    # Step 3: Generate tractogram with 5 million streamlines
     if [ ! -f ${wd}_tractogram_5M.tck ]; then
-        tckgen ${wd}_fod.mif ${wd}_tractogram_5M.tck -seed_dynamic ${wd}_fod.mif -select 2M -mask ${wd}_brainmask.nii.gz -maxlength 250
+        run_command tckgen ${wd}_fod.mif ${wd}_tractogram_5M.tck -seed_dynamic ${wd}_fod.mif -select 5M -mask ${in_dwi_file}_mean_brainmask.nii.gz -maxlength 250
     fi
 
-    # Step 5: SIFT to reduce the tractogram to 1 million streamlines
+    # Step 4: SIFT to reduce the tractogram to 1 million streamlines
     if [ ! -f ${wd}_tractogram_SIFT_1M.tck ]; then
-        tcksift ${wd}_tractogram_5M.tck ${wd}_fod.mif ${wd}_tractogram_SIFT_1M.tck -term_number 1M
+        run_command tcksift ${wd}_tractogram_5M.tck ${wd}_fod.mif ${wd}_tractogram_SIFT_1M.tck -term_number 1M
     fi
 
-    # Step 6: Convert Brainnetome atlas to diffusion space
-    if [ ! -f ${wd}_labels.nii.gz ]; then
-        cp ${FSLDIR}/data/standard/MNI152_T1_2mm.nii.gz ${wd}_MNI2diff.nii.gz
-        cp ${git_dir}/dependences/atlas/BN_Atlas_246_2mm.nii.gz ${wd}_labels.nii.gz
-        cp ${DTI_dir}/${s}/ses-${ses}/${s}_ses-${ses}_dir-AP_dwi_corr_FA.nii.gz ${wd}_FAreff.nii.gz
-        gzip -d ${wd}_MNI2diff.nii.gz
-        gzip -d ${wd}_FAreff.nii.gz
-        gzip -d ${wd}_labels.nii.gz
-        $MATLAB_PATH -nodisplay -nosplash -nodesktop -r "addpath('${git_dir}/dependences/functions'); spm_coregister_parcellation('${wd}_FAreff.nii', '${wd}_MNI2diff.nii', '${wd}_labels.nii'); exit;"
-        rm ${wd}_FAreff.nii
-        gzip ${wd}_labels.nii
-        gzip ${wd}_MNI2diff.nii
-   fi
+    # Cleanning files
+    for f in ${wd}_fod.mif ${wd}_tractogram_5M.tck ${wd}_response.txt; do
+        if [ -f ${f} ]; then
+            rm ${f}
+        fi
+    done
 
-    # Step 7: Generate streamlines connectome using SIFTed tractogram (stream count)
-    if [ ! -f ${wd}_connectome_streamcount.csv ]; then
-        tck2connectome ${wd}_tractogram_SIFT_1M.tck ${wd}_labels.nii.gz ${wd}_connectome_streamcount.csv -symmetric -zero_diagonal
+    end_time=$(date +%s)
+    duration=$((end_time - start_time))
+    if [ $duration -ge 3600 ]; then
+        echo -e "${BLUE}Subject ${s} processing time: $(($duration / 3600)) hours, $((($duration % 3600) / 60)) minutes, and $(($duration % 60)) seconds.${NC}\n"
+    elif [ $duration -ge 60 ]; then
+        echo -e "${BLUE}Subject ${s} processing time: $(($duration / 60)) minutes and $(($duration % 60)) seconds.${NC}\n"
+    else
+        echo -e "${BLUE}Subject ${s} processing time: $duration seconds.${NC}\n"
     fi
-
-    # Step 8: Generate FA-weighted connectome using SIFTed tractogram (Assumes DTI maps have been generated)
-    if [ ! -f ${wd}_connectome_fa.csv ]; then
-        tcksample ${wd}_tractogram_SIFT_1M.tck ${DTI_dir}/${s}/ses-${ses}/${s}_ses-${ses}_dir-AP_dwi_corr_FA.nii.gz ${wd}_fa_samples.csv -stat_tck mean
-        tck2connectome ${wd}_tractogram_SIFT_1M.tck ${wd}_labels.nii.gz ${wd}_connectome_fa.csv -scale_file ${wd}_fa_samples.csv -stat_edge mean -symmetric -zero_diagonal
-    fi
-
-    # Break after processing one subject (for testing purposes)
-    break
 done
