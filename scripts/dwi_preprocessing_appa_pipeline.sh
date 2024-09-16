@@ -30,8 +30,8 @@
 #   the number of available CPU cores.
 
 # Configuration
-bids_dir=/Volumes/working_disk_blue/SPRINT_MPS/bids_data
-bids_out=/Volumes/working_disk_blue/SPRINT_MPS/bids_derivatives/DWI_postprocessed
+bids_dir=/path/to/bids/data
+bids_out=/path/to/bids/derivatives/subfolder
 parallel_jobs=6  # Set the number of parallel jobs (subjects) to process simultaneously
 
 # Do not modify beyond this point ------------------------------------------------

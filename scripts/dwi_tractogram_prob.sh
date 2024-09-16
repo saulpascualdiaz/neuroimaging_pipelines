@@ -37,6 +37,7 @@ DTI_dir="/Volumes/working_disk_blue/SPRINT_MPS/bids_derivatives/DWI_DTI-derived_
 
 # ANSI Color variables
 BLUE='\033[1;34m'
+GREEN='\033[0;32m'
 NC='\033[0m' # Sin color (reset)
 
 run_command() {
@@ -56,9 +57,13 @@ for s in $(ls ${dwi_preprocessed}); do
     
     echo "Working on subject ${s}..."
     
+    
+
     # Define output directory
     od=${bids_derivatives}/DWI_tractograms/${s}/ses-${ses}
     wd=${od}/${s}_ses-${ses}_dir-AP_dwi
+
+    if [ -f ${wd}_tractogram_SIFT_1M.tck ]; then printf "${GREEN}\tTractogram found for subject ${s}.${NC}\nc"; continue; fi
     if [ ! -d ${od} ]; then mkdir -p ${od}; fi
 
     start_time=$(date +%s)

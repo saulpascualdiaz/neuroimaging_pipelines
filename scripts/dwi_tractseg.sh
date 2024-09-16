@@ -43,10 +43,18 @@ for s in $(ls ${dwi_preprocessed}); do
     fi
 
     if [ ! -d ${od} ]; then mkdir -p ${od}; fi  # Create output directory if it doesn't exist
-    
+
+    # Step 0: Calculate brainmask in case it didn't exist
+    if [ ! -f ${in_dwi_file}_mean_brainmask.nii.gz ]; then
+        run_command fslmaths ${in_dwi_file}.nii.gz -Tmean ${in_dwi_file}_mean.nii.gz
+        run_command bet2 ${in_dwi_file}_mean.nii.gz ${in_dwi_file}_mean_brain.nii.gz -f 0.45 -g 0.0
+        run_command fslmaths ${in_dwi_file}_mean_brain.nii.gz -thr 0 -bin ${in_dwi_file}_mean_brainmask.nii.gz
+    fi
+
     # Step 1: Tract segmentation using TractSeg
-    TractSeg -i ${in_dwi_file}.nii.gz --bvals ${in_dwi_file}.bval --bvecs ${in_dwi_file}.bvec --output_type tract_segmentation -o ${od} --raw_diffusion_input
+    TractSeg -i ${in_dwi_file}.nii.gz --bvals ${in_dwi_file}.bval --bvecs ${in_dwi_file}.bvec --output_type tract_segmentation -o ${od} --raw_diffusion_input --brain_mask ${in_dwi_file}_mean_brainmask.nii.gz
     
     # Step 2: Endings segmentation using TractSeg
-    TractSeg -i ${od}/peaks.nii.gz --bvals ${in_dwi_file}.bval --bvecs ${in_dwi_file}.bvec --output_type endings_segmentation -o ${od}
+    TractSeg -i ${od}/peaks.nii.gz --bvals ${in_dwi_file}.bval --bvecs ${in_dwi_file}.bvec --output_type endings_segmentation -o ${od} --brain_mask ${in_dwi_file}_mean_brainmask.nii.gz
+
 done
