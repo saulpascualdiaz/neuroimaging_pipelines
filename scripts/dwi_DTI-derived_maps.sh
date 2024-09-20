@@ -23,15 +23,8 @@
 # Paths
 bids_derivatives="/Volumes/working_disk_blue/SPRINT_MPS/bids_derivatives"
 dwi_preprocessed="${bids_derivatives}/DWI_postprocessed"
-
-# ANSI Color variables
-BLUE='\033[1;34m'
-NC='\033[0m' # Sin color (reset)
-
-run_command() {
-    echo -e "${BLUE}command:${NC} $*"
-    "$@"
-}
+git_dir="/Users/spascual/git/saulpascualdiaz/neuroimaging_pipelines"
+source ${git_dir}/dependences/functions/common_bash_functions.sh
 
 # Loop through each subject in the preprocessed DWI directory
 for s in $(ls ${dwi_preprocessed}); do
@@ -41,7 +34,7 @@ for s in $(ls ${dwi_preprocessed}); do
     in_dwi_file=${dwi_preprocessed}/${s}/ses-${ses}/${s}_ses-${ses}_dir-AP_dwi_corr
     
     # Check if the expected DWI file exists, skip to the next subject if not
-    if [ ! -f ${in_dwi_file}.nii.gz ]; then continue; fi
+    if file_exists ${in_dwi_file}.nii.gz; then continue; fi
     
     echo "Working on subject ${s}..."
     
@@ -49,7 +42,7 @@ for s in $(ls ${dwi_preprocessed}); do
     od=${bids_derivatives}/DWI_DTI-derived_maps/${s}/ses-${ses}
     
     # Check if the DTI-derived maps already exist, skip processing if found
-    if [ -f "${od}/${s}_ses-${ses}_dir-AP_dwi_corr_AD.nii.gz" ]; then
+    if file_exists "${od}/${s}_ses-${ses}_dir-AP_dwi_corr_AD.nii.gz"; then
         echo "DTI-derived maps output found for subject: ${s}"
         continue
     fi
@@ -58,7 +51,7 @@ for s in $(ls ${dwi_preprocessed}); do
     if [ ! -d ${od} ]; then mkdir -p ${od}; fi  
     
     # Step 0: Calculate brainmask in case it didn't exist
-    if [ ! -f ${in_dwi_file}_mean_brainmask.nii.gz ]; then
+    if ! file_exists ${in_dwi_file}_mean_brainmask.nii.gz; then
         run_command fslmaths ${in_dwi_file}.nii.gz -Tmean ${in_dwi_file}_mean.nii.gz
         run_command bet2 ${in_dwi_file}_mean.nii.gz ${in_dwi_file}_mean_brain.nii.gz -f 0.45 -g 0.0
         run_command fslmaths ${in_dwi_file}_mean_brain.nii.gz -thr 0 -bin ${in_dwi_file}_mean_brainmask.nii.gz

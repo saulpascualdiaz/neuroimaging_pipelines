@@ -34,16 +34,7 @@ bids_derivatives="/Volumes/working_disk_blue/SPRINT_MPS/bids_derivatives"
 dwi_preprocessed="${bids_derivatives}/DWI_postprocessed"
 git_dir="/Users/spascual/git/saulpascualdiaz/neuroimaging_pipelines"
 DTI_dir="/Volumes/working_disk_blue/SPRINT_MPS/bids_derivatives/DWI_DTI-derived_maps"
-
-# ANSI Color variables
-BLUE='\033[1;34m'
-GREEN='\033[0;32m'
-NC='\033[0m' # Sin color (reset)
-
-run_command() {
-    echo -e "${BLUE}command:${NC} $*"
-    "$@"
-}
+source ${git_dir}/dependences/functions/common_bash_functions.sh
 
 # Loop through each subject in the preprocessed DWI directory
 for s in $(ls ${dwi_preprocessed}); do
@@ -57,8 +48,6 @@ for s in $(ls ${dwi_preprocessed}); do
     
     echo "Working on subject ${s}..."
     
-    
-
     # Define output directory
     od=${bids_derivatives}/DWI_tractograms/${s}/ses-${ses}
     wd=${od}/${s}_ses-${ses}_dir-AP_dwi

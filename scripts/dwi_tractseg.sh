@@ -21,6 +21,8 @@
 # Paths
 bids_derivatives="/Volumes/working_disk_blue/SPRINT_MPS/bids_derivatives"
 dwi_preprocessed="${bids_derivatives}/DWI_postprocessed"
+git_dir="/Users/spascual/git/saulpascualdiaz/neuroimaging_pipelines"
+source ${git_dir}/dependences/functions/common_bash_functions.sh
 
 # Loop through each subject in the preprocessed DWI directory
 for s in $(ls ${dwi_preprocessed}); do
@@ -30,7 +32,7 @@ for s in $(ls ${dwi_preprocessed}); do
     in_dwi_file=${dwi_preprocessed}/${s}/ses-${ses}/${s}_ses-${ses}_dir-AP_dwi_corr
     
     # Check if the expected DWI file exists, skip to next subject if not
-    if [ ! -f ${in_dwi_file}.nii.gz ]; then continue; fi
+    if ! file_exists -f ${in_dwi_file}.nii.gz; then continue; fi
     
     echo "Working on subject ${s}..."
     
@@ -45,7 +47,7 @@ for s in $(ls ${dwi_preprocessed}); do
     if [ ! -d ${od} ]; then mkdir -p ${od}; fi  # Create output directory if it doesn't exist
 
     # Step 0: Calculate brainmask in case it didn't exist
-    if [ ! -f ${in_dwi_file}_mean_brainmask.nii.gz ]; then
+    if ! file_exists ${in_dwi_file}_mean_brainmask.nii.gz; then
         run_command fslmaths ${in_dwi_file}.nii.gz -Tmean ${in_dwi_file}_mean.nii.gz
         run_command bet2 ${in_dwi_file}_mean.nii.gz ${in_dwi_file}_mean_brain.nii.gz -f 0.45 -g 0.0
         run_command fslmaths ${in_dwi_file}_mean_brain.nii.gz -thr 0 -bin ${in_dwi_file}_mean_brainmask.nii.gz

@@ -33,14 +33,8 @@
 bids_dir=/path/to/bids/data
 bids_out=/path/to/bids/derivatives/subfolder
 parallel_jobs=6  # Set the number of parallel jobs (subjects) to process simultaneously
-
-# Do not modify beyond this point ------------------------------------------------
-# ANSI color codes
-BLUE='\033[0;34m'
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-ORANGE='\033[0;33m'
-NC='\033[0m' # No Color
+git_dir="/Users/spascual/git/saulpascualdiaz/neuroimaging_pipelines"
+source ${git_dir}/dependences/functions/common_bash_functions.sh
 
 process_subject() {
     s=$1
@@ -60,7 +54,7 @@ process_subject() {
     # Checking for input files
     missing_files=false
     for f in "${wd}-AP_dwi.bval" "${wd}-AP_dwi.bvec" "${wd}-AP_dwi.nii.gz" "${wd}-PA_dwi.nii.gz"; do
-        if [ ! -f "${f}" ]; then
+        if ! file_exists "${f}"; then
             printf "${RED}[WARNING] Skipping subject ${s}. Missing input file: ${f}${NC}\n"
             missing_files=true
         fi
@@ -75,7 +69,7 @@ process_subject() {
     fi
     
     # DWI denoising
-    if [ ! -f ${od}-AP_dwi_denoised.nii.gz ]; then
+    if ! file_exists ${od}-AP_dwi_denoised.nii.gz; then
         dwidenoise ${wd}-AP_dwi.nii.gz ${od}-AP_dwi_denoised.nii.gz
         if [ $? -eq 0 ]; then
             printf "${GREEN}Denoising completed for subject ${s}${NC}\n"
@@ -88,7 +82,7 @@ process_subject() {
     fi
     
     # Step 2: Remove Gibbs ringing
-    if [ ! -f ${od}-AP_dwi_unringed.nii.gz ]; then
+    if ! file_exists ${od}-AP_dwi_unringed.nii.gz; then
         mrdegibbs ${od}-AP_dwi_denoised.nii.gz  ${od}-AP_dwi_unringed.nii.gz
         if [ $? -eq 0 ]; then
             printf "${GREEN}Gibbs ringing removal completed for subject ${s}${NC}\n"
@@ -100,7 +94,7 @@ process_subject() {
     fi
 
     # FSL DWI pre-processing
-    if [ ! -f ${od}-AP_dwi_corr.nii.gz ]; then
+    if ! file_exists ${od}-AP_dwi_corr.nii.gz; then
         fslroi ${wd}-AP_dwi.nii.gz ${od}-AP_dwi_b0.nii.gz 0 1
         fslroi ${wd}-PA_dwi.nii.gz ${od}-PA_dwi_b0.nii.gz 0 1
         mrcat ${od}-AP_dwi_b0.nii.gz ${od}-PA_dwi_b0.nii.gz ${od}-b0_pair.mif -axis 3
@@ -119,7 +113,7 @@ process_subject() {
     # Cleanning files
     for f in "${od}-AP_dwi_b0.nii.gz" "${od}-AP_dwi_denoised.nii.gz" \
         "${od}-b0_pair.mif" "${od}-PA_dwi_b0.nii.gz" "${od}-AP_dwi_unringed.nii.gz"; do
-        if [ -f ${f} ]; then
+        if file_exists ${f}; then
             rm ${f}
         fi
     done
